@@ -54,9 +54,15 @@ public class App {
 
         try (Stream<Path> s = Files.find(rootPath, 50, (p, a) -> {
             String fullName = p.toString();
-            return !a.isDirectory() && (fullName.endsWith(".jar") || fullName.endsWith(".pom"));
+            return !a.isDirectory() && a.isRegularFile() && (fullName.endsWith(".jar") || fullName.endsWith(".pom"));
         })) {
-            s.forEach(path -> {
+            s.filter(p -> {
+                try {
+                    return !Files.isHidden(p) && !Files.isSymbolicLink(p);
+                } catch (IOException ignore) {
+                    return false;
+                }
+            }).forEach(path -> {
                 // com/github/chengyuxing/rabbit-sql/7.8.6/rabbit-sql-7.8.6.jar
                 String packagePath = path.subpath(rootPath.getNameCount(), path.getNameCount()).toString();
 
