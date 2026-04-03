@@ -9,7 +9,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 public class App {
@@ -41,6 +43,11 @@ public class App {
         final String password = up[1];
 
         final OkHttpClient httpClient = new OkHttpClient.Builder()
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
+                .writeTimeout(60, TimeUnit.SECONDS)
+                .protocols(Collections.singletonList(Protocol.HTTP_1_1))
+                .connectionPool(new ConnectionPool(0, 1, TimeUnit.NANOSECONDS))
                 .authenticator(new Authenticator() {
                     @NotNull
                     @Override
@@ -73,21 +80,16 @@ public class App {
                         .put(body)
                         .build();
 
-                try {
-                    Thread.sleep(100);
-                    try (Response response = httpClient.newCall(request).execute()) {
-                        ResponseBody responseBody = response.body();
-                        if (Objects.nonNull(responseBody)) {
-                            String result = responseBody.string().trim();
-                            if (!result.isEmpty()) {
-                                System.out.println(result);
-                            }
+                try (Response response = httpClient.newCall(request).execute()) {
+                    ResponseBody responseBody = response.body();
+                    if (Objects.nonNull(responseBody)) {
+                        String result = responseBody.string().trim();
+                        if (!result.isEmpty()) {
+                            System.out.println(result);
                         }
-                        System.out.println("+ " + packagePath);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
                     }
-                } catch (InterruptedException e) {
+                    System.out.println("+ " + packagePath);
+                } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
             });
