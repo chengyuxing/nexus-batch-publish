@@ -12,6 +12,7 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 public class App {
@@ -63,6 +64,7 @@ public class App {
             String fullName = p.toString();
             return !a.isDirectory() && a.isRegularFile() && (fullName.endsWith(".jar") || fullName.endsWith(".pom"));
         })) {
+            AtomicInteger i = new AtomicInteger();
             s.filter(p -> {
                 try {
                     return !Files.isHidden(p) && !Files.isSymbolicLink(p);
@@ -89,12 +91,13 @@ public class App {
                         }
                     }
                     System.out.println("+ " + packagePath);
+                    i.getAndIncrement();
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
             });
             System.out.println("-------------------------------------");
-            System.out.println("Congratulations, all packages pushed!");
+            System.out.println("Congratulations, " + i.get() + " packages pushed!");
         }
     }
 }
