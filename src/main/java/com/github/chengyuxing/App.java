@@ -1,6 +1,9 @@
 package com.github.chengyuxing;
 
 import okhttp3.*;
+import okio.BufferedSink;
+import okio.Okio;
+import okio.Source;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -48,17 +51,7 @@ public class App {
                 .readTimeout(60, TimeUnit.SECONDS)
                 .writeTimeout(60, TimeUnit.SECONDS)
                 .protocols(Collections.singletonList(Protocol.HTTP_1_1))
-                .connectionPool(new ConnectionPool(0, 1, TimeUnit.NANOSECONDS))
-                .authenticator(new Authenticator() {
-                    @NotNull
-                    @Override
-                    public Request authenticate(@Nullable Route route, @NotNull Response response) {
-                        String credentials = Credentials.basic(username, password, StandardCharsets.UTF_8);
-                        return response.request().newBuilder()
-                                .header("Authorization", credentials)
-                                .build();
-                    }
-                }).build();
+                .build();
 
         try (Stream<Path> s = Files.find(rootPath, 50, (p, a) -> {
             String fullName = p.toString();
@@ -75,10 +68,30 @@ public class App {
                 // com/github/chengyuxing/rabbit-sql/7.8.6/rabbit-sql-7.8.6.jar
                 String packagePath = path.subpath(rootPath.getNameCount(), path.getNameCount()).toString();
 
-                RequestBody body = RequestBody.create(path.toFile(), MediaType.parse("application/octet-stream"));
+                RequestBody body = new RequestBody() {
+                    @Nullable
+                    @Override
+                    public MediaType contentType() {
+                        return MediaType.parse("application/octet-stream");
+                    }
+
+                    @Override
+                    public long contentLength() throws IOException {
+                        return Files.size(path);
+                    }
+
+                    @Override
+                    public void writeTo(@NotNull BufferedSink bufferedSink) throws IOException {
+                        try (Source source = Okio.source(path)) {
+                            bufferedSink.writeAll(source);
+                        }
+                    }
+                };
 
                 Request request = new Request.Builder()
                         .url(nexusServer + packagePath)
+                        .header("Authorization", Credentials.basic(username, password, StandardCharsets.UTF_8))
+                        .header("Expect", "")
                         .put(body)
                         .build();
 
@@ -92,7 +105,8 @@ public class App {
                     }
                     System.out.println("+ " + packagePath);
                     i.getAndIncrement();
-                } catch (IOException e) {
+                } catch (Exception e) {
+                    System.out.println("Upload failed: " + packagePath);
                     throw new RuntimeException(e);
                 }
             });
