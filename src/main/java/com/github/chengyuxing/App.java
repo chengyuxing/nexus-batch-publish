@@ -75,7 +75,7 @@ public class App {
                 // com/github/chengyuxing/rabbit-sql/7.8.6/rabbit-sql-7.8.6.jar
                 String packagePath = path.subpath(rootPath.getNameCount(), path.getNameCount()).toString();
 
-                RequestBody body = MultipartBody.create(path.toFile(), MediaType.parse("multipart/form-data"));
+                RequestBody body = RequestBody.create(path.toFile(), MediaType.parse("application/octet-stream"));
 
                 Request request = new Request.Builder()
                         .url(nexusServer + packagePath)
