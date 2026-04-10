@@ -1,6 +1,7 @@
 package com.github.chengyuxing;
 
 import okhttp3.*;
+import okio.Buffer;
 import okio.BufferedSink;
 import okio.Okio;
 import okio.Source;
@@ -49,7 +50,7 @@ public class App {
         final OkHttpClient httpClient = new OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(60, TimeUnit.SECONDS)
-                .writeTimeout(60, TimeUnit.SECONDS)
+                .writeTimeout(5, TimeUnit.MINUTES)
                 .protocols(Collections.singletonList(Protocol.HTTP_1_1))
                 .build();
 
@@ -83,7 +84,12 @@ public class App {
                     @Override
                     public void writeTo(@NotNull BufferedSink bufferedSink) throws IOException {
                         try (Source source = Okio.source(path)) {
-                            bufferedSink.writeAll(source);
+                            Buffer buffer = new Buffer();
+                            long read;
+                            while ((read = source.read(buffer, 8 * 1024)) != -1) {
+                                bufferedSink.write(buffer, read);
+                                bufferedSink.flush();
+                            }
                         }
                     }
                 };
@@ -92,6 +98,7 @@ public class App {
                         .url(nexusServer + packagePath)
                         .header("Authorization", Credentials.basic(username, password, StandardCharsets.UTF_8))
                         .header("Expect", "")
+                        .header("Accept-Encoding", "identity")
                         .put(body)
                         .build();
 
